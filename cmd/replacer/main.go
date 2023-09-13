@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"github.com/harakeishi/gats"
 	"github.com/nguyenthenguyen/docx"
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -9,9 +10,9 @@ import (
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-    "path/filepath"
 )
 
 type Replacer struct {
@@ -157,47 +158,61 @@ func (r *Replacer) replaceXlsx(inputFilename string, outputFilename string) erro
 
 func (r *Replacer) Replace(inputDirname string, outputDirname string) error {
 
-    return walkTemplateDir(inputDirname, outputDirname, func(input, output string) error {
+	return walkTemplateDir(inputDirname, outputDirname, func(input, output string) error {
 
-        os.MkdirAll(filepath.Dir(output), os.ModePerm)
+		os.MkdirAll(filepath.Dir(output), os.ModePerm)
 
-        switch filepath.Ext(input) {
-        case ".xlsx":
-            return r.replaceXlsx(input, output)
-        case ".docx":
-            return r.replaceDocx(input, output)
-        default:
-            return nil
-        }
-    })
+		switch filepath.Ext(input) {
+		case ".xlsx":
+			return r.replaceXlsx(input, output)
+		case ".docx":
+			return r.replaceDocx(input, output)
+		default:
+			return nil
+		}
+	})
 }
 
 func walkTemplateDir(inputDirname string, outputDirname string, f func(inputFilename string, outputFilename string) error) error {
-    return filepath.Walk(inputDirname, func(path string, info os.FileInfo, err error) error {
-        if err != nil {
-            return err
-        }
-        if info.IsDir() {
-            return nil
-        }
+	return filepath.Walk(inputDirname, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
 
-        relpath, err := filepath.Rel(inputDirname, path)
-        if err != nil {
-            return err
-        }
+		relpath, err := filepath.Rel(inputDirname, path)
+		if err != nil {
+			return err
+		}
 
-        outputFilename := filepath.Join(outputDirname, relpath)
-        f(path, outputFilename)
-        return nil
-    })
+		outputFilename := filepath.Join(outputDirname, relpath)
+		f(path, outputFilename)
+		return nil
+	})
 }
 
 func main() {
-	repl, err := NewReplacer("scheme.yaml", "data.yaml")
+	var (
+		inputDirname   string
+		outputDirname  string
+		schemaFilename string
+		dataFilename   string
+	)
+	flag.StringVar(&inputDirname, "input", "template", "input directory path")
+	flag.StringVar(&outputDirname, "output", "output", "output directory path")
+	flag.StringVar(&schemaFilename, "scheme", filepath.Join(inputDirname, "scheme.yaml"), "scheme definition file")
+	flag.StringVar(&dataFilename, "data", "data.yaml", "scheme definition file")
+	flag.Parse()
+
+	repl, err := NewReplacer(schemaFilename, dataFilename)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-    err = repl.Replace("template", "out")
-    log.Println(err)
+	err = repl.Replace(inputDirname, outputDirname)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
