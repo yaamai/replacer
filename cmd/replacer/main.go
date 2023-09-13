@@ -163,7 +163,7 @@ func (r *Replacer) Replace(inputDirname string, outputDirname string) error {
 		os.MkdirAll(filepath.Dir(output), os.ModePerm)
 
 		switch filepath.Ext(input) {
-		case ".xlsx":
+		case ".xlsx", ".xlsm":
 			return r.replaceXlsx(input, output)
 		case ".docx":
 			return r.replaceDocx(input, output)
