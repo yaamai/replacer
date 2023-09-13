@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+    "path/filepath"
 )
 
 type Replacer struct {
@@ -154,13 +155,49 @@ func (r *Replacer) replaceXlsx(inputFilename string, outputFilename string) erro
 	return nil
 }
 
+func (r *Replacer) Replace(inputDirname string, outputDirname string) error {
+
+    return walkTemplateDir(inputDirname, outputDirname, func(input, output string) error {
+
+        os.MkdirAll(filepath.Dir(output), os.ModePerm)
+
+        switch filepath.Ext(input) {
+        case ".xlsx":
+            return r.replaceXlsx(input, output)
+        case ".docx":
+            return r.replaceDocx(input, output)
+        default:
+            return nil
+        }
+    })
+}
+
+func walkTemplateDir(inputDirname string, outputDirname string, f func(inputFilename string, outputFilename string) error) error {
+    return filepath.Walk(inputDirname, func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            return err
+        }
+        if info.IsDir() {
+            return nil
+        }
+
+        relpath, err := filepath.Rel(inputDirname, path)
+        if err != nil {
+            return err
+        }
+
+        outputFilename := filepath.Join(outputDirname, relpath)
+        f(path, outputFilename)
+        return nil
+    })
+}
+
 func main() {
 	repl, err := NewReplacer("scheme.yaml", "data.yaml")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = repl.replaceDocx("test.docx", "out.docx")
-	log.Println(err)
-	err = repl.replaceXlsx("test.xlsx", "out.xlsx")
-	log.Println(err)
+
+    err = repl.Replace("template", "out")
+    log.Println(err)
 }
